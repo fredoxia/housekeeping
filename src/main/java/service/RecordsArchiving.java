@@ -125,6 +125,7 @@ public class RecordsArchiving extends AbstractArchiving {
     	    				countArchive = result4.getInt(1);
     	    			}
 
+    	    			
     	    			//迁移数据到其他表
 	    					selectStatement.setInt(1, clientId);
 	            			selectStatement.setString(2, barcode);
