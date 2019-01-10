@@ -97,7 +97,7 @@ public abstract class AbstractArchiving {
     	chainResult.close();
     	pStatement.close();
     	
-    	log(chainStores.toString());
+    	log(chainStores.size() + " " + chainStores.toString());
     	
     	return chainStores;
 	}

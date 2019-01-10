@@ -33,11 +33,13 @@ public class RecordsArchiving extends AbstractArchiving {
     public void process() throws Exception{
     	log("---------------recordsArchiving " + houseKeepingConstant.getNewOrderId());
     	List<ChainStore> chainStores = new ArrayList<ChainStore>();
+    	int chainSize = 0;
     	Map<Integer, Set<String>> chainStoreNotRequired = new HashMap<Integer, Set<String>>();
     	Map<String, Integer> barcodeIdMap = new HashMap<String, Integer>();
     	
     	//1. chains
     	chainStores = getChainStores();
+    	chainSize = chainStores.size();
 
     	//2. productbarcode ids
     	String getAllProductBarcode = "SELECT barcode, id  FROM product_barcode";
@@ -101,8 +103,9 @@ public class RecordsArchiving extends AbstractArchiving {
     	ResultSet result2 = null;
     	ResultSet result3 = null;
     	ResultSet result4 = null;
+    	int index = 0;
     	for (ChainStore chainStore :  chainStores){
-    		log("处理  : " + chainStore.getChainName());
+    		log("处理  : " + chainStore.getChainName() + " "+ index++ + "/"+ chainSize);
     		int clientId = chainStore.getClientId();
     		
     		Set<String> barcodes = chainStoreNotRequired.get(chainStore.getClientId());
