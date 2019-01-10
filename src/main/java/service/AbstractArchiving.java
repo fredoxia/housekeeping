@@ -17,8 +17,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-import houseKeeping.entity.ChainStore;
-import houseKeeping.entity.HouseKeepingConstant;
+import entity.ChainStore;
+import entity.HouseKeepingConstant;
 
 public abstract class AbstractArchiving {
 	protected String url;  

@@ -1,4 +1,4 @@
-package houseKeeping.entity;
+package entity;
 
 public class ChainStore {
 	private int chainId ;

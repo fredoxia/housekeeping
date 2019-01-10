@@ -1,4 +1,4 @@
-package houseKeeping.entity;
+package entity;
 
 import java.util.Date;
 

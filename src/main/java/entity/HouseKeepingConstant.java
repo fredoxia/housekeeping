@@ -1,4 +1,4 @@
-package houseKeeping.entity;
+package entity;
 
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;

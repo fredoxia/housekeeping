@@ -16,8 +16,8 @@ import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 
-import houseKeeping.entity.ChainStore;
-import houseKeeping.entity.HouseKeepingConstant;
+import entity.ChainStore;
+import entity.HouseKeepingConstant;
 
 /**
  * 
