@@ -31,7 +31,30 @@ public abstract class AbstractArchiving {
 
 	protected Connection conn = null;  
 	protected PreparedStatement pStatement = null;
-	protected Logger log ; 
+	private Logger log ; 
+	private static Logger errorLogger;
+	
+	public Logger getErrorLogger(){
+		if (errorLogger == null){
+			errorLogger = Logger.getLogger("Error");
+	        FileHandler fileHandler = null;
+			try {
+				fileHandler = new FileHandler("C:\\NotBackedUp\\AA-Error.log", true);
+			} catch (SecurityException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} 
+	        fileHandler.setLevel(Level.INFO); 
+	        fileHandler.setFormatter(new ArchvingLogHander());
+	        errorLogger.addHandler(fileHandler); 
+		}
+		
+		return errorLogger;
+	}
+	
 	
 	public AbstractArchiving(String confFile) {  
 
@@ -50,65 +73,45 @@ public abstract class AbstractArchiving {
         } catch (Exception e) {  
             e.printStackTrace();  
         }  
-        
-        log = Logger.getLogger("AbstractArchiving");
-        
-        ConsoleHandler consoleHandler =new ConsoleHandler(); 
-        consoleHandler.setLevel(Level.ALL); 
-        log.addHandler(consoleHandler); 
-        
-        FileHandler fileHandler = null;
-		try {
-			fileHandler = new FileHandler("C:\\NotBackedUp\\Archiving.log", true);
-		} catch (SecurityException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} 
-        fileHandler.setLevel(Level.INFO); 
-        fileHandler.setFormatter(new ArchvingLogHander());
-        log.addHandler(fileHandler); 
+
 	}  
 	
-	public List<ChainStore> getChainStores() throws SQLException{
-		List<ChainStore> chainStores = new ArrayList<ChainStore>();
-    	
-		
-    	String getChains = "SELECT * FROM chain_store";
-    	pStatement = conn.prepareStatement(getChains);
-    	    	
-    	ResultSet chainResult = pStatement.executeQuery();
-    	while (chainResult.next()){
-    		int chainId = chainResult.getInt("chain_id");
-    		String chainName = chainResult.getString("chain_name");
-    		int status = chainResult.getInt("status");
-    		int clientId = chainResult.getInt("client_id");
-    		
-    		ChainStore chainStore = new ChainStore();
-    		chainStore.setChainId(chainId);
-    		chainStore.setChainName(chainName);
-    		chainStore.setStatus(status);
-    		chainStore.setClientId(clientId);
-    		
-    		chainStores.add(chainStore);
-    	}
-    	chainResult.close();
-    	pStatement.close();
-    	
-    	log(chainStores.size() + " " + chainStores.toString());
-    	
-    	return chainStores;
+	public void setLogFile(String fileName){
+	        log = Logger.getLogger("AbstractArchiving" +fileName);
+	        
+//	        ConsoleHandler consoleHandler =new ConsoleHandler(); 
+//	        consoleHandler.setLevel(Level.ALL); 
+//	        log.addHandler(consoleHandler); 
+//	        
+	        FileHandler fileHandler = null;
+			try {
+				fileHandler = new FileHandler("C:\\NotBackedUp\\Archiving" + fileName + ".log", true);
+			} catch (SecurityException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} 
+	        fileHandler.setLevel(Level.INFO); 
+	        fileHandler.setFormatter(new ArchvingLogHander());
+	        log.addHandler(fileHandler); 
 	}
+	
+
 	
 	public void log(String logInfo){
 		log.info(logInfo);
 	}
 	
+	public void logError(String erroLog){
+		getErrorLogger().info(erroLog);
+	}
+	
 	public void close() {  
         try {  
-        	this.pStatement.close();
+        	if ( this.pStatement != null)
+        	    this.pStatement.close();
             this.conn.close();  
         } catch (SQLException e) {  
             e.printStackTrace();  

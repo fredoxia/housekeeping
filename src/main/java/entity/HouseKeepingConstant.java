@@ -1,53 +1,60 @@
 package entity;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
-
+import java.util.Properties;
 
 
 public class HouseKeepingConstant {
 	private SimpleDateFormat dateFormat =  new SimpleDateFormat("yyyyMMdd");
-	private PropertiesConfiguration properties = new PropertiesConfiguration();
+	private Properties properties = new Properties();
 	private String newOrderId;
 	
 	public HouseKeepingConstant(String fileName){
 		
     	try {
-			properties = new PropertiesConfiguration("C:\\NotBackedUp\\" + fileName + ".properties");
-		} catch (ConfigurationException e) {
+    		InputStream propertyFile = new FileInputStream("C:\\NotBackedUp\\" + fileName + ".properties");
+    		
+			properties.load(propertyFile);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-        
-        properties.setAutoSave(true);
+
 		Date now = new Date();
 		newOrderId = "ABA"+ dateFormat.format(now);
 	}
 	
 	public String getUrl(){
-		return properties.getString("url");
+		return properties.getProperty("url");
 	}
 	
 	public String getName(){
-		return properties.getString("name");
+		return properties.getProperty("name");
 	}
 	public String getUser(){
-		return properties.getString("user");
+		return properties.getProperty("user");
 	}
 	public String getPassword(){
-		return properties.getString("password");
+		return properties.getProperty("password");
 	}
 	
 	public String getOrderId(){
-		String orderId = properties.getString("ORDER_ID");
+		String orderId = properties.getProperty("ORDER_ID");
 		return orderId;
 	}
 	
 	public String getYearIds(){
-		return properties.getString("YearIds");
+		return properties.getProperty("YearIds");
 	}
 	
 	public String getNewOrderId(){
@@ -56,7 +63,7 @@ public class HouseKeepingConstant {
 	}
 	
 	public int getType(){
-		return properties.getInt("TYPE");
+		return Integer.parseInt(properties.getProperty("TYPE"));
 	}
 	
 	public void updateNewOrderId(){
