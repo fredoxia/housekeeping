@@ -12,7 +12,7 @@ import java.util.Properties;
 
 
 public class HouseKeepingConstant {
-	private SimpleDateFormat dateFormat =  new SimpleDateFormat("yyyyMMdd");
+	private SimpleDateFormat dateFormat =  new SimpleDateFormat("yyyyMMddhh");
 	private Properties properties = new Properties();
 	private String newOrderId;
 	
@@ -72,7 +72,7 @@ public class HouseKeepingConstant {
 	
 	public static void main(String[] args) throws SQLException {
 		HouseKeepingConstant houseKeepingConstant = new HouseKeepingConstant("qxbabyConf");
-		System.out.println(houseKeepingConstant.getYearIds());
+		System.out.println(houseKeepingConstant.getNewOrderId());
 		
 //		houseKeepingConstant.updateNewOrderId();
 //		

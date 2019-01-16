@@ -98,7 +98,55 @@ public abstract class AbstractArchiving {
 	        log.addHandler(fileHandler); 
 	}
 	
+	protected List<ChainStore> getChainStores() throws SQLException{
+		List<ChainStore> chainStores = new ArrayList<ChainStore>();
+    	
+		
+    	String getChains = "SELECT * FROM chain_store";
+    	pStatement = conn.prepareStatement(getChains);
+    	    	
+    	ResultSet chainResult = pStatement.executeQuery();
+    	while (chainResult.next()){
+    		int chainId = chainResult.getInt("chain_id");
+    		String chainName = chainResult.getString("chain_name");
+    		int status = chainResult.getInt("status");
+    		int clientId = chainResult.getInt("client_id");
+    		
+    		ChainStore chainStore = new ChainStore();
+    		chainStore.setChainId(chainId);
+    		chainStore.setChainName(chainName);
+    		chainStore.setStatus(status);
+    		chainStore.setClientId(clientId);
+    		
+    		chainStores.add(chainStore);
+    	}
+    	chainResult.close();
 
+    	
+    	//log(chainStores.size() + " " + chainStores.toString());
+    	
+    	return chainStores;
+	}
+	
+	protected List<Integer> getQuarters() throws SQLException {
+		List<Integer> quarters = new ArrayList<Integer>();
+    	
+		
+    	String getQuarters = "SELECT quarter_ID FROM quarter";
+    	pStatement = conn.prepareStatement(getQuarters);
+    	    	
+    	ResultSet quarterResult = pStatement.executeQuery();
+    	while (quarterResult.next()){
+    		int quarterId = quarterResult.getInt("quarter_ID");
+    		
+    		quarters.add(quarterId);
+    	}
+    	quarterResult.close();
+
+    	//log(chainStores.size() + " " + chainStores.toString());
+    	
+    	return quarters;
+	}
 	
 	public void log(String logInfo){
 		log.info(logInfo);

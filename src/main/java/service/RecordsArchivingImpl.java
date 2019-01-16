@@ -14,7 +14,7 @@ import org.apache.commons.lang.StringUtils;
 
 import entity.ChainStore;
 
-public class SumZeroArchivingImpl extends AbstractArchiving {
+public class RecordsArchivingImpl extends AbstractArchiving {
     private String confFile = "";
     private static int processNum = 0;
     
@@ -26,10 +26,10 @@ public class SumZeroArchivingImpl extends AbstractArchiving {
     	return processNum;
     }
     
-	public SumZeroArchivingImpl(String confFile) {
+	public RecordsArchivingImpl(String confFile) {
 		super(confFile);
         this.confFile = confFile;
-        setLogFile("主线程");
+        setLogFile("RecordsArchiving主线程");
 	}
 	
 	
@@ -90,44 +90,66 @@ public class SumZeroArchivingImpl extends AbstractArchiving {
 			}
 		} else if (userInforString.equals("2")) {
 			try {
-		    	//2. , sum=0锟斤拷record
-		    	for (Integer quarterId : quarters){
-		    		for (ChainStore chainStore :  chainStores){
+				
+			  	Map<Integer, Set<String>> chainStoreNotRequired = new HashMap<Integer, Set<String>>();
+		    	Map<String, Integer> barcodeIdMap = new HashMap<String, Integer>();
+
+
+		    	//2. productbarcode ids
+		    	String getAllProductBarcode = "SELECT barcode, id  FROM product_barcode";
+		    	pStatement = conn.prepareStatement(getAllProductBarcode);
+		    	ResultSet pbRequired = pStatement.executeQuery();
+		    	while (pbRequired.next()){
+		    		String barcode = pbRequired.getString("barcode");
+		    		int id = pbRequired.getInt("id");
+
+		    		barcodeIdMap.put(barcode, id);
+		    	}
+		    	pbRequired.close();
+		    	pStatement.close();
+
+		    	log("year在数据库的值: " + yearIds);
+		    	String getPBIdsRequired = "SELECT barcode  FROM product_barcode pb WHERE pb.product_id IN (SELECT product_ID FROM product WHERE year_ID IN " + yearIds + ")";
+		    	
+		    	for (ChainStore chainStore :  chainStores){
+		    		Set<String> barcodes = new HashSet<String>();
+		    		
+		    		String getNotRequiredPB = "SELECT DISTINCT product_barcode FROM chain_in_out_stock WHERE client_id = ? AND product_barcode IN ( " + getPBIdsRequired + ")";
+		    		pStatement = conn.prepareStatement(getNotRequiredPB);
+		    		pStatement.setInt(1, chainStore.getClientId());
+		   
+		        	ResultSet chainStoreNotRequiredP = pStatement.executeQuery();
+		        	while (chainStoreNotRequiredP.next()){
+		        		String barcode = chainStoreNotRequiredP.getString("product_barcode");
+
+		        		barcodes.add(barcode);
+		        	}
+		        	
+		        	chainStoreNotRequired.put(chainStore.getClientId(), barcodes);
+		    	}
+		    	
+		    	//2. , 处理数据
+		    	for (ChainStore chainStore :  chainStores){
 			    		while (getProcessNum() >= 50){
-			    			log(">>>>>>>>>" + getProcessNum() + " , " + quarterId + " , " +chainStore );
+			    			log(">>>>>>>>>" + getProcessNum() + " , " +chainStore );
 			    			Thread.sleep(300000);
 			    		}
 			    		
-			    		Set<String> barcodes = new HashSet<String>();
-	
-			    		String getNotRequiredPB = "SELECT product_barcode FROM chain_in_out_stock WHERE client_id = ? AND product_barcode IN (SELECT barcode  FROM product_barcode pb WHERE pb.product_id IN (SELECT product_ID FROM product WHERE quarter_ID =? AND year_ID IN " + yearIds + ")) GROUP BY product_barcode HAVING SUM(quantity)=0 AND COUNT(product_barcode)>1";
-			    		pStatement = conn.prepareStatement(getNotRequiredPB);
-			
-						pStatement.setInt(1, chainStore.getClientId());
-						pStatement.setInt(2, quarterId);
-						
-			        	ResultSet chainStoreNotRequiredP = pStatement.executeQuery();
-			        	while (chainStoreNotRequiredP.next()){
-			        		String barcode = chainStoreNotRequiredP.getString("product_barcode");
-			
-			        		barcodes.add(barcode);
-			        	}
+			    		Set<String> barcodes = chainStoreNotRequired.get(chainStore.getClientId());
 			        	
-			        	
-			        	SumZeroProcess process = new SumZeroProcess(confFile);
+			        	RecordsArchivingProcess process = new RecordsArchivingProcess(confFile);
 			        	process.setBarcodes(barcodes);
 			        	process.setChainStore(chainStore);
 			        	
 			        	String threadName = "";
-			        	SumZeroArchivingImpl.addProcessNum(1);
+			        	RecordsArchivingImpl.addProcessNum(1);
 			        	Thread thread = new Thread(process);
-			        	thread.setName("线程" + chainStore.getChainName() + "-" + quarterId);
+			        	thread.setName("线程" + chainStore.getChainName());
 			        	thread.start();
 			        	threadName = thread.getName();
 			        	
 			        	log("启动线程    : " + threadName + " , " + getProcessNum() + " , " + barcodes.size());
 		    		}
-		    	}
 			} catch (Exception e ){
 				e.printStackTrace();
 				log(e.getMessage());
@@ -144,7 +166,7 @@ public class SumZeroArchivingImpl extends AbstractArchiving {
 
 
 	public static void main(String[] args) throws Exception {
-		SumZeroArchivingImpl rArchiving = new SumZeroArchivingImpl("qxbabyConf");
+		RecordsArchivingImpl rArchiving = new RecordsArchivingImpl("qxbabyConf");
 		rArchiving.process();
 
 	}
