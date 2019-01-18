@@ -12,7 +12,7 @@ import java.util.Properties;
 
 
 public class HouseKeepingConstant {
-	private SimpleDateFormat dateFormat =  new SimpleDateFormat("yyyyMMddhh");
+	private SimpleDateFormat dateFormat =  new SimpleDateFormat("yyyyMMdd");
 	private Properties properties = new Properties();
 	private String newOrderId;
 	

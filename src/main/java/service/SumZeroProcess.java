@@ -94,7 +94,7 @@ public class SumZeroProcess extends AbstractArchiving implements Runnable{
 //    		Set<String> barcodes = chainStoreNotRequired.get(chainStore.getClientId());
     		int pbIdOriginal = -1;
     		
-    		if (barcodes.size() == 0){
+    		if (barcodes ==  null || barcodes.size() == 0){
     			log("barcode.siz = 0  Skip");
     		} else {
     			log(barcodes.toString());

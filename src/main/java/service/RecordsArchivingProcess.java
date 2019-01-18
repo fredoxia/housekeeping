@@ -25,26 +25,35 @@ import entity.HouseKeepingConstant;
  *
  */
 public class RecordsArchivingProcess extends AbstractArchiving  implements Runnable{
-	   private ChainStore chainStore;
-	    private Set<String> barcodes;
-		private String name;
-		
-		public ChainStore getChainStore() {
-			return chainStore;
-		}
+    private ChainStore chainStore;
+    private int quarterId;
+    private Set<String> barcodes;
+	private String name;
+	
+	public ChainStore getChainStore() {
+		return chainStore;
+	}
 
-		public void setChainStore(ChainStore chainStore) {
-			this.chainStore = chainStore;
-		}
+	public void setChainStore(ChainStore chainStore) {
+		this.chainStore = chainStore;
+	}
 
-		public Set<String> getBarcodes() {
-			return barcodes;
-		}
+	public Set<String> getBarcodes() {
+		return barcodes;
+	}
 
-		public void setBarcodes(Set<String> barcodes) {
-			this.barcodes = barcodes;
-		}
-		
+	public void setBarcodes(Set<String> barcodes) {
+		this.barcodes = barcodes;
+	}
+	
+    public int getQuarterId() {
+		return quarterId;
+	}
+
+	public void setQuarterId(int quarterId) {
+		this.quarterId = quarterId;
+	}
+
 	public RecordsArchivingProcess(String confFile) {  
          super(confFile);
 	} 
@@ -75,7 +84,6 @@ public class RecordsArchivingProcess extends AbstractArchiving  implements Runna
     	setLogFile(name);
     	
     	log("---------------recordsArchiving " + houseKeepingConstant.getNewOrderId());
-    	int chainSize = 0;
   
     	
     	//4. 
@@ -87,6 +95,7 @@ public class RecordsArchivingProcess extends AbstractArchiving  implements Runna
     	String newRecord = "INSERT INTO chain_in_out_stock (client_id, product_barcode, order_id, type, quantity, cost, sale_price, cost_total, sale_price_total, chain_sale_price_total, date, productBarcodeId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
     	String insertArchiveRecord = "INSERT INTO chain_in_out_stock_archive (client_id, product_barcode, order_id, type, quantity, cost, sale_price, cost_total, sale_price_total, chain_sale_price_total, date, productBarcodeId, archive_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
     	String countArchiveRow = "SELECT COUNT(client_id) FROM chain_in_out_stock_archive WHERE client_id =? AND product_barcode=?";
+    	String deleteArchiveRow = "DELETE FROM chain_in_out_stock_archive WHERE client_id =? AND product_barcode=?";
     	
     	PreparedStatement selectStatement = conn.prepareStatement(selectRow);
     	PreparedStatement countRowsStatement = conn.prepareStatement(countRow);
@@ -96,132 +105,151 @@ public class RecordsArchivingProcess extends AbstractArchiving  implements Runna
     	PreparedStatement newStockRowStatement = conn.prepareStatement(newRecord);
     	PreparedStatement archiveStatement = conn.prepareStatement(insertArchiveRecord);
     	PreparedStatement archiveCountStatement = conn.prepareStatement(countArchiveRow);
+    	PreparedStatement deleteArchiveRowStatement = conn.prepareStatement(deleteArchiveRow);
     	
     	ResultSet result1 = null;
     	ResultSet result2 = null;
     	ResultSet result3 = null;
     	ResultSet result4 = null;
-    	int index = 0;
 
     	int clientId = chainStore.getClientId();
-    	
-		log("  需要处理的条码 : " + barcodes.size());
-		for (String barcode : barcodes){
-			int pbIdOriginal = -1;
-			countRowsStatement.setInt(1, clientId);
-			countRowsStatement.setString(2, barcode);
-			
-			result1 = countRowsStatement.executeQuery();
-			if (result1.next()){				
-				int count = result1.getInt(1);
+
+		if (barcodes ==  null || barcodes.size() == 0){
+			log("barcode.siz = 0  Skip");
+		} else {
+			log(barcodes.toString());
+			log("  需要处理的条码 : " + barcodes.size());
+    		
+    		int j = 0;
+			for (String barcode : barcodes){
+    			j++;
+    			if (j % 50 == 0)
+    				log(name + " 条码 " + j +"/" + barcodes.size());
+
+    			
+				int pbIdOriginal = -1;
+				countRowsStatement.setInt(1, clientId);
+				countRowsStatement.setString(2, barcode);
 				
-				//log("  ����  : " + barcode + "," + count);
-				if (count > 1){
-					archiveCountStatement.setInt(1, clientId);
-					archiveCountStatement.setString(2, barcode);
-	    			result4 = archiveCountStatement.executeQuery();
-	    			int countArchive = 0;
-	    			if (result4.next()){				
-	    				countArchive = result4.getInt(1);
-	    			}
-
-	    			
-	    			//获取每条数据，然后插入到archive表
-					selectStatement.setInt(1, clientId);
-        			selectStatement.setString(2, barcode);
-      
-        			result2 = selectStatement.executeQuery();
-        			java.sql.Date now = new java.sql.Date(new Date().getTime());
-        			while (result2.next()){
-        				int clientIdDB = result2.getInt(1);
-        				String barcodeDB = result2.getString(2);
-        				String orderId = result2.getString(3);
-        				int type = result2.getInt(4);
-        				
-        				if (type == houseKeepingConstant.getType() || orderId.startsWith("ABA") && countArchive>0 )
-        					continue;
-
-        	            int quantity = result2.getInt(5);
-        	            double cost = result2.getDouble(6);
-        	            double salePrice = result2.getDouble(7);
-        	            double costTotal = result2.getDouble(8);
-        	            double salePriceTotal = result2.getDouble(9);
-        	            double chainSalePriceTotal = result2.getDouble(10);
-        	            java.sql.Date date = result2.getDate(11);
-        	            int pbId = result2.getInt(12);
-        	            pbIdOriginal = pbId;
-
-        	            archiveStatement.setInt(1, clientIdDB);
-        	            archiveStatement.setString(2, barcodeDB);
-        	            archiveStatement.setString(3, orderId);
-        	            archiveStatement.setInt(4, type);
-        	            archiveStatement.setInt(5, quantity);
-        	            archiveStatement.setDouble(6, cost);
-        	            archiveStatement.setDouble(7, salePrice);
-        	            archiveStatement.setDouble(8, costTotal);
-        	            archiveStatement.setDouble(9, salePriceTotal);
-        	            archiveStatement.setDouble(10, chainSalePriceTotal);
-        	            archiveStatement.setDate(11, date);
-        	            archiveStatement.setInt(12, pbId);
-        	            archiveStatement.setDate(13, now);
-        	            archiveStatement.execute();
-        	        }
-
-        			
-					//获取这几条数据的sum信息
-	    			sumAllStatement.setInt(1, clientId);
-	    			sumAllStatement.setString(2, barcode);
-	    			result2 = sumAllStatement.executeQuery();
-	    			int quantity = 0;
-	    			double costTotal = 0;
-	    			double salePriceTotal = 0;
-	    			double chainSalePriceTotal = 0;
-	    			
-	            	if (result2.next()){
-	            		quantity = result2.getInt(1);
-	            		costTotal = result2.getDouble(2);
-	            		salePriceTotal = result2.getDouble(3);
-	            		chainSalePriceTotal = result2.getDouble(4);
-	            	}
-	            	
-	            	//删除原数据
-	            	deleteRowStatement.setInt(1, clientId);
-    	    		deleteRowStatement.setString(2, barcode);
-    				deleteRowStatement.executeUpdate();
-    				
-    				//如果quantity不为0，插入新的汇总数据
-    				if (quantity != 0)	{
-    					newStockRowStatement.setInt(1, chainStore.getClientId());
-    					newStockRowStatement.setString(2, barcode);
-    					newStockRowStatement.setString(3, ORDER_ID);
-    					newStockRowStatement.setInt(4, TYPE);
-    					newStockRowStatement.setInt(5, quantity);
-    					newStockRowStatement.setDouble(6, costTotal/quantity);
-    					newStockRowStatement.setDouble(7, salePriceTotal/quantity);
-    					newStockRowStatement.setDouble(8, costTotal);
-    					newStockRowStatement.setDouble(9, salePriceTotal);
-    					newStockRowStatement.setDouble(10, chainSalePriceTotal);
-    					newStockRowStatement.setTimestamp(11, new Timestamp(new java.util.Date().getTime()));
-    					newStockRowStatement.setInt(12, pbIdOriginal);
+				result1 = countRowsStatement.executeQuery();
+				if (result1.next()){				
+					int count = result1.getInt(1);
 					
-    					newStockRowStatement.execute();
-	            	}
-					
-				} else if (count == 1){
-	    			sumQStatement.setInt(1, clientId);
-	    			sumQStatement.setString(2, barcode);
-	    			result3 = sumQStatement.executeQuery();
-	    			if (result3.next()){
-	    				int Qsum = result3.getInt(1);
-	    				if (Qsum == 0){
-	     	    			deleteRowStatement.setInt(1, clientId);
-	    	    			deleteRowStatement.setString(2, barcode);
-	    					deleteRowStatement.executeUpdate();
-	    				}
-	    			}
+					//log("  ����  : " + barcode + "," + count);
+					if (count > 1){
+						archiveCountStatement.setInt(1, clientId);
+						archiveCountStatement.setString(2, barcode);
+		    			result4 = archiveCountStatement.executeQuery();
+		    			int countArchive = 0;
+		    			if (result4.next()){				
+		    				countArchive = result4.getInt(1);
+		    			}
+	
+		    			//获取每条数据，然后插入到archive表
+						selectStatement.setInt(1, clientId);
+	        			selectStatement.setString(2, barcode);
+	      
+	        			result2 = selectStatement.executeQuery();
+	        			java.sql.Date now = new java.sql.Date(new Date().getTime());
+	        			while (result2.next()){
+	        				int clientIdDB = result2.getInt(1);
+	        				String barcodeDB = result2.getString(2);
+	        				String orderId = result2.getString(3);
+	        				int type = result2.getInt(4);
+	        				
+	        				if (type == houseKeepingConstant.getType() || orderId.startsWith("ABA") && countArchive>0 )
+	        					continue;
+	
+	        	            int quantity = result2.getInt(5);
+	        	            double cost = result2.getDouble(6);
+	        	            double salePrice = result2.getDouble(7);
+	        	            double costTotal = result2.getDouble(8);
+	        	            double salePriceTotal = result2.getDouble(9);
+	        	            double chainSalePriceTotal = result2.getDouble(10);
+	        	            java.sql.Date date = result2.getDate(11);
+	        	            int pbId = result2.getInt(12);
+	        	            pbIdOriginal = pbId;
+	
+	        	            archiveStatement.setInt(1, clientIdDB);
+	        	            archiveStatement.setString(2, barcodeDB);
+	        	            archiveStatement.setString(3, orderId);
+	        	            archiveStatement.setInt(4, type);
+	        	            archiveStatement.setInt(5, quantity);
+	        	            archiveStatement.setDouble(6, cost);
+	        	            archiveStatement.setDouble(7, salePrice);
+	        	            archiveStatement.setDouble(8, costTotal);
+	        	            archiveStatement.setDouble(9, salePriceTotal);
+	        	            archiveStatement.setDouble(10, chainSalePriceTotal);
+	        	            archiveStatement.setDate(11, date);
+	        	            archiveStatement.setInt(12, pbId);
+	        	            archiveStatement.setDate(13, now);
+	        	            archiveStatement.execute();
+	        	        }
+	
+	        			
+						//获取这几条数据的sum信息
+		    			sumAllStatement.setInt(1, clientId);
+		    			sumAllStatement.setString(2, barcode);
+		    			result2 = sumAllStatement.executeQuery();
+		    			int quantity = 0;
+		    			double costTotal = 0;
+		    			double salePriceTotal = 0;
+		    			double chainSalePriceTotal = 0;
+		    			
+		            	if (result2.next()){
+		            		quantity = result2.getInt(1);
+		            		costTotal = result2.getDouble(2);
+		            		salePriceTotal = result2.getDouble(3);
+		            		chainSalePriceTotal = result2.getDouble(4);
+		            	}
+		            	
+		            	//删除原数据
+		            	deleteRowStatement.setInt(1, clientId);
+	    	    		deleteRowStatement.setString(2, barcode);
+	    				deleteRowStatement.executeUpdate();
+	    				
+	    				//如果quantity不为0，插入新的汇总数据
+	    				if (quantity != 0)	{
+	    					newStockRowStatement.setInt(1, chainStore.getClientId());
+	    					newStockRowStatement.setString(2, barcode);
+	    					newStockRowStatement.setString(3, ORDER_ID);
+	    					newStockRowStatement.setInt(4, TYPE);
+	    					newStockRowStatement.setInt(5, quantity);
+	    					newStockRowStatement.setDouble(6, costTotal/quantity);
+	    					newStockRowStatement.setDouble(7, salePriceTotal/quantity);
+	    					newStockRowStatement.setDouble(8, costTotal);
+	    					newStockRowStatement.setDouble(9, salePriceTotal);
+	    					newStockRowStatement.setDouble(10, chainSalePriceTotal);
+	    					newStockRowStatement.setTimestamp(11, new Timestamp(new java.util.Date().getTime()));
+	    					newStockRowStatement.setInt(12, pbIdOriginal);
+						
+	    					newStockRowStatement.execute();
+		            	} else {
+		            		deleteArchiveRowStatement.setInt(1, clientId);
+		            		deleteArchiveRowStatement.setString(2, barcode);
+		            		deleteArchiveRowStatement.executeUpdate();
+		            	}
+						
+					} else if (count == 1){
+		    			sumQStatement.setInt(1, clientId);
+		    			sumQStatement.setString(2, barcode);
+		    			result3 = sumQStatement.executeQuery();
+		    			if (result3.next()){
+		    				int Qsum = result3.getInt(1);
+		    				if (Qsum == 0){
+		     	    			deleteRowStatement.setInt(1, clientId);
+		    	    			deleteRowStatement.setString(2, barcode);
+		    					deleteRowStatement.executeUpdate();
+		    					
+			            		deleteArchiveRowStatement.setInt(1, clientId);
+			            		deleteArchiveRowStatement.setString(2, barcode);
+			            		deleteArchiveRowStatement.executeUpdate();
+		    				}
+		    			}
+					}
 				}
+			
 			}
-		
 		}
 
     	

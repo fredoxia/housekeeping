@@ -62,22 +62,28 @@ public class RecordsArchivingImpl extends AbstractArchiving {
 		
 		if (userInforString.equals("1")) {
 			try {
+			  	
+		    	//2. productbarcode ids
+		    	log("year在数据库的值: " + yearIds);
+		    	String getPBIdsRequired = "SELECT barcode  FROM product_barcode pb WHERE pb.product_id IN (SELECT product_ID FROM product WHERE year_ID IN " + yearIds + ")";
+		    	
 		    	for (ChainStore chainStore :  chainStores){
-		    		Set<String> barcodes = new HashSet<String>();
-
-		    		String getNotRequiredPB = "SELECT product_barcode FROM chain_in_out_stock WHERE client_id = ? AND product_barcode IN (SELECT barcode  FROM product_barcode pb WHERE pb.product_id IN (SELECT product_ID FROM product WHERE year_ID IN " + yearIds + ")) GROUP BY product_barcode HAVING SUM(quantity)=0 AND COUNT(product_barcode)>1";
+		    		//@testing
+		    		if (chainStore.getClientId() != 1174)
+		    			continue;
+		    		
+		    		String getNotRequiredPB = "SELECT count(product_barcode) FROM chain_in_out_stock WHERE client_id = ? AND product_barcode IN ( " + getPBIdsRequired + ")";
 		    		pStatement = conn.prepareStatement(getNotRequiredPB);
-					pStatement.setInt(1, chainStore.getClientId());
-					
+		    		pStatement.setInt(1, chainStore.getClientId());
+		   
 		        	ResultSet chainStoreNotRequiredP = pStatement.executeQuery();
 		        	while (chainStoreNotRequiredP.next()){
-		        		String barcode = chainStoreNotRequiredP.getString("product_barcode");
-		
-		        		barcodes.add(barcode);
+		        		int barcodeCount = chainStoreNotRequiredP.getInt(1);
+
+		        		log(chainStore.getChainName() + " - " + barcodeCount);
 		        	}
 
-		        	log( chainStore.getChainName() + " , " + barcodes.size());
-		    		}
+		    	}
 			} catch (Exception e ){
 				e.printStackTrace();
 				log(e.getMessage());
@@ -91,65 +97,81 @@ public class RecordsArchivingImpl extends AbstractArchiving {
 		} else if (userInforString.equals("2")) {
 			try {
 				
-			  	Map<Integer, Set<String>> chainStoreNotRequired = new HashMap<Integer, Set<String>>();
-		    	Map<String, Integer> barcodeIdMap = new HashMap<String, Integer>();
-
-
-		    	//2. productbarcode ids
-		    	String getAllProductBarcode = "SELECT barcode, id  FROM product_barcode";
-		    	pStatement = conn.prepareStatement(getAllProductBarcode);
-		    	ResultSet pbRequired = pStatement.executeQuery();
-		    	while (pbRequired.next()){
-		    		String barcode = pbRequired.getString("barcode");
-		    		int id = pbRequired.getInt("id");
-
-		    		barcodeIdMap.put(barcode, id);
-		    	}
-		    	pbRequired.close();
-		    	pStatement.close();
+			  	Map<String, Set<String>> chainStoreNotRequired = new HashMap<String, Set<String>>();
+			  	
+//		    	Map<String, Integer> barcodeIdMap = new HashMap<String, Integer>();
+//		    	//2. productbarcode ids
+//		    	String getAllProductBarcode = "SELECT barcode, id  FROM product_barcode";
+//		    	pStatement = conn.prepareStatement(getAllProductBarcode);
+//		    	ResultSet pbRequired = pStatement.executeQuery();
+//		    	while (pbRequired.next()){
+//		    		String barcode = pbRequired.getString("barcode");
+//		    		int id = pbRequired.getInt("id");
+//
+//		    		barcodeIdMap.put(barcode, id);
+//		    	}
 
 		    	log("year在数据库的值: " + yearIds);
-		    	String getPBIdsRequired = "SELECT barcode  FROM product_barcode pb WHERE pb.product_id IN (SELECT product_ID FROM product WHERE year_ID IN " + yearIds + ")";
+		    	String getPBIdsRequired = "SELECT barcode  FROM product_barcode pb WHERE pb.product_id IN (SELECT product_ID FROM product WHERE quarter_ID =? AND year_ID IN " + yearIds + ")";
 		    	
-		    	for (ChainStore chainStore :  chainStores){
-		    		Set<String> barcodes = new HashSet<String>();
-		    		
-		    		String getNotRequiredPB = "SELECT DISTINCT product_barcode FROM chain_in_out_stock WHERE client_id = ? AND product_barcode IN ( " + getPBIdsRequired + ")";
-		    		pStatement = conn.prepareStatement(getNotRequiredPB);
-		    		pStatement.setInt(1, chainStore.getClientId());
-		   
-		        	ResultSet chainStoreNotRequiredP = pStatement.executeQuery();
-		        	while (chainStoreNotRequiredP.next()){
-		        		String barcode = chainStoreNotRequiredP.getString("product_barcode");
-
-		        		barcodes.add(barcode);
-		        	}
-		        	
-		        	chainStoreNotRequired.put(chainStore.getClientId(), barcodes);
+		    	for (Integer quarterId : quarters){
+			    	 for (ChainStore chainStore :  chainStores){
+			    		//@testing
+			    		if (chainStore.getClientId() != 1174)
+			    			continue;
+			    		 
+			    		Set<String> barcodes = new HashSet<String>();
+			    		
+			    		String getNotRequiredPB = "SELECT DISTINCT product_barcode FROM chain_in_out_stock WHERE client_id = ? AND product_barcode IN ( " + getPBIdsRequired + ")";
+			    		pStatement = conn.prepareStatement(getNotRequiredPB);
+			    		pStatement.setInt(1, chainStore.getClientId());
+			    		pStatement.setInt(2, quarterId);
+			   
+			        	ResultSet chainStoreNotRequiredP = pStatement.executeQuery();
+			        	while (chainStoreNotRequiredP.next()){
+			        		String barcode = chainStoreNotRequiredP.getString("product_barcode");
+	
+			        		barcodes.add(barcode);
+			        	}
+			        	
+			        	chainStoreNotRequired.put(quarterId + "," +chainStore.getClientId(), barcodes);
+			    	}
 		    	}
 		    	
 		    	//2. , 处理数据
-		    	for (ChainStore chainStore :  chainStores){
-			    		while (getProcessNum() >= 50){
-			    			log(">>>>>>>>>" + getProcessNum() + " , " +chainStore );
-			    			Thread.sleep(300000);
-			    		}
-			    		
-			    		Set<String> barcodes = chainStoreNotRequired.get(chainStore.getClientId());
-			        	
-			        	RecordsArchivingProcess process = new RecordsArchivingProcess(confFile);
-			        	process.setBarcodes(barcodes);
-			        	process.setChainStore(chainStore);
-			        	
-			        	String threadName = "";
-			        	RecordsArchivingImpl.addProcessNum(1);
-			        	Thread thread = new Thread(process);
-			        	thread.setName("线程" + chainStore.getChainName());
-			        	thread.start();
-			        	threadName = thread.getName();
-			        	
-			        	log("启动线程    : " + threadName + " , " + getProcessNum() + " , " + barcodes.size());
-		    		}
+		    	for (Integer quarterId : quarters){
+			    	for (ChainStore chainStore :  chainStores){
+				    		while (getProcessNum() >= 50){
+				    			log(">>>>>>>>>" + getProcessNum() + " , " +chainStore );
+				    			Thread.sleep(300000);
+				    		}
+				    		
+				    		//@testing
+//				    		if (chainStore.getClientId() != 1174)
+//				    			continue;
+				    		
+				    		Set<String> barcodes = chainStoreNotRequired.get(quarterId + "," +chainStore.getClientId());
+				    		
+				    		if (barcodes == null || barcodes.size() == 0){
+				    			log("过滤    : " + chainStore.getChainName() + "-" +quarterId);
+				    			continue;
+				    		}
+
+				        	RecordsArchivingProcess process = new RecordsArchivingProcess(confFile);
+				        	process.setBarcodes(barcodes);
+				        	process.setChainStore(chainStore);
+				        	process.setQuarterId(quarterId);
+				        	
+				        	String threadName = "";
+				        	RecordsArchivingImpl.addProcessNum(1);
+				        	Thread thread = new Thread(process);
+				        	thread.setName("线程" + chainStore.getChainName() + "-" +quarterId);
+				        	thread.start();
+				        	threadName = thread.getName();
+				        	
+				        	log("启动线程    : " + threadName + " , " + getProcessNum() + " , " + barcodes.size());
+			    	}
+		    	}
 			} catch (Exception e ){
 				e.printStackTrace();
 				log(e.getMessage());
