@@ -27,6 +27,7 @@ public abstract class AbstractArchiving {
 	protected String password;
 	protected String ORDER_ID;
 	protected int TYPE;
+	protected String confFile;
 	protected HouseKeepingConstant houseKeepingConstant;
 
 	protected Connection conn = null;  
@@ -57,7 +58,7 @@ public abstract class AbstractArchiving {
 	
 	
 	public AbstractArchiving(String confFile) {  
-
+		this.confFile = confFile;
 		houseKeepingConstant = new HouseKeepingConstant(confFile);
 		this.url = houseKeepingConstant.getUrl();
 		this.name = houseKeepingConstant.getName();
