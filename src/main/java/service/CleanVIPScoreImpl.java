@@ -12,7 +12,7 @@ public class CleanVIPScoreImpl extends AbstractArchiving{
 
 	public CleanVIPScoreImpl(String confFile) {
 		super(confFile);
-		setLogFile("vipç§¯åˆ†æ¸…ç†ä¸»çº¿ç¨‹");
+		setLogFile("vip»ı·ÖÇåÀí");
 	}
 	
 	public void process() throws SQLException{
@@ -22,7 +22,7 @@ public class CleanVIPScoreImpl extends AbstractArchiving{
 		String updateInitialValue = "UPDATE chain_vip_cards SET initial_value = 0";
 		PreparedStatement updateInitialStatement = conn.prepareStatement(updateInitialValue);
     	int rows = updateInitialStatement.executeUpdate();
-    	log("æ›´æ–°åˆå§‹ç§¯åˆ† : " + rows);
+    	log("¸üĞÂinitial score : " + rows);
     	
 		for (int i= 0; i< chainStores.size(); i++){
 			if (i % 10 == 0){
@@ -31,11 +31,11 @@ public class CleanVIPScoreImpl extends AbstractArchiving{
 				
 		    	String threadName = "";
 		    	Thread thread = new Thread(process);
-		    	thread.setName("çº¿ç¨‹" + i );
+		    	thread.setName("ÇåÀí" + i );
 		    	thread.start();
 		    	threadName = thread.getName();
 		    	
-		    	log("å¯åŠ¨çº¿ç¨‹    : " + threadName);
+		    	log("ÕıÔÚ´¦Àí    : " + threadName);
 				
 				
 				chainStoreIds = new HashSet<Integer>();
